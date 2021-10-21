@@ -719,7 +719,11 @@ class Typer extends Namer
       else if (target.isRef(defn.FloatClass))
         tree.kind match {
           case Whole(16) => // cant parse hex literal as float
-          case _         => return lit(floatFromDigits(digits))
+          case _         =>
+            val float = floatFromDigits(digits)
+            if digits.toIntOption.exists(_ != float.toInt) then
+              report.warning(LossyWideningConstantConversion(defn.IntType, target), tree.srcPos)
+            return lit(float)
         }
       else if (target.isRef(defn.DoubleClass))
         tree.kind match {
@@ -2778,7 +2782,11 @@ class Typer extends Namer
           case tree: untpd.Apply =>
             if (ctx.mode is Mode.Pattern) typedUnApply(tree, pt) else typedApply(tree, pt)
           case tree: untpd.This => typedThis(tree)
-          case tree: untpd.Number => typedNumber(tree, pt)
+          case tree: untpd.Number =>
+            println(("typedNumber in", tree.show, pt.show))
+            val result = typedNumber(tree, pt)
+            println(("typedNumber out", result.show))
+            result
           case tree: untpd.Literal => typedLiteral(tree)
           case tree: untpd.New => typedNew(tree, pt)
           case tree: untpd.Typed => typedTyped(tree, pt)
@@ -2895,7 +2903,7 @@ class Typer extends Namer
 
   /** Typecheck and adapt tree, returning a typed tree. Parameters as for `typedUnadapted` */
   def typed(tree: untpd.Tree, pt: Type, locked: TypeVars)(using Context): Tree =
-    trace(i"typing $tree, pt = $pt", typr, show = true) {
+    trace.force(i"typing $tree, pt = $pt", typr, show = true) {
       record(s"typed $getClass")
       record("typed total")
       if ctx.phase.isTyper then
@@ -3732,9 +3740,14 @@ class Typer extends Namer
       ConstFold(tree).tpe.widenTermRefExpr.normalized match
         case ConstantType(x) =>
           val converted = x.convertTo(pt)
+          println((tree.show, x.tag, wtp.classSymbol, converted))
           if converted != null && (converted ne x) then
+            println(("in", tree.show, x.tag, wtp.classSymbol))
+            if x.tag == IntTag && wtp.classSymbol == defn.FloatClass && x.intValue.toFloat.toInt != x.intValue then
+              report.warning(LossyWideningConstantConversion(x.tpe, wtp), tree.srcPos)
             return adaptConstant(tree, ConstantType(converted))
         case _ =>
+          println(("nope", tree.show, wtp))
 
       val captured = captureWildcards(wtp)
       if (captured `ne` wtp)
