@@ -651,7 +651,7 @@ object Build {
           else if (debugFromTasty) "dotty.tools.dotc.fromtasty.Debug"
           else "dotty.tools.dotc.Main"
 
-        var extraClasspath = Seq(scalaLib, dottyLib)
+        var extraClasspath = Seq(scalaLib, dottyLib, "out2")
 
         if (decompile && !args.contains("-classpath"))
           extraClasspath ++= Seq(".")
