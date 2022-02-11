@@ -478,7 +478,6 @@ trait BCodeBodyBuilder extends BCodeSkelBuilder {
      * must-single-thread
      */
     private def fieldOp(field: Symbol, isLoad: Boolean, specificReceiver: Symbol): Unit = {
-      Thread.dumpStack()
       val useSpecificReceiver = specificReceiver != null && specificReceiver != NoSymbol && !field.isScalaStatic
 
       val owner      = internalName(if (useSpecificReceiver) specificReceiver else field.owner)
