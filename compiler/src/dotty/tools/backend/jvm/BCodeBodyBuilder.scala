@@ -396,6 +396,7 @@ trait BCodeBodyBuilder extends BCodeSkelBuilder {
             genLoadModule(tree)
           } else if (sym.isStaticMember) {
             genLoadQualUnlessElidable()
+            println(s"-> fieldLoad ${sym.flags.flagsString} $qualifier ${qualifier.tpe} $sym $receiverClass")
             fieldLoad(sym, receiverClass)
           } else {
             genLoadQualifier(tree)
@@ -477,7 +478,8 @@ trait BCodeBodyBuilder extends BCodeSkelBuilder {
      * must-single-thread
      */
     private def fieldOp(field: Symbol, isLoad: Boolean, specificReceiver: Symbol): Unit = {
-      val useSpecificReceiver = specificReceiver != null && !field.isScalaStatic
+      Thread.dumpStack()
+      val useSpecificReceiver = specificReceiver != null && specificReceiver != NoSymbol && !field.isScalaStatic
 
       val owner      = internalName(if (useSpecificReceiver) specificReceiver else field.owner)
       val fieldJName = field.javaSimpleName
