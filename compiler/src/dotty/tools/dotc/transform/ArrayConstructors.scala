@@ -15,7 +15,7 @@ import scala.collection.immutable.::
 
 /** This phase rewrites calls to array constructors to newArray method in Dotty.runtime.Arrays module.
  *
- * It assummes that generic arrays have already been handled by typer(see Applications.convertNewGenericArray).
+ * It assumes that generic arrays have already been handled by typer (see Applications.convertNewGenericArray).
  * Additionally it optimizes calls to scala.Array.ofDim functions by replacing them with calls to newArray with specific dimensions
  */
 class ArrayConstructors extends MiniPhase {

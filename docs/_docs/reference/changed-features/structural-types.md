@@ -196,6 +196,6 @@ differences.
   between both approaches. In `Selectable`, `applyDynamic` also may also take
   [`java.lang.Class`](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Class.html) arguments indicating the method's formal parameter types.
 
-- `updateDynamic` is unique to [`Dynamic`](https://scala-lang.org/api/3.x/scala/Dynamic.html) but as mentionned before, this fact is subject to change, and shouldn't be used as an assumption.
+- `updateDynamic` is unique to [`Dynamic`](https://scala-lang.org/api/3.x/scala/Dynamic.html) but as mentioned before, this fact is subject to change, and shouldn't be used as an assumption.
 
 [More details](structural-types-spec.md)

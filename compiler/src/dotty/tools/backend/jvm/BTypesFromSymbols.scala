@@ -142,7 +142,7 @@ class BTypesFromSymbols[I <: DottyBackendInterface](val int: I, val frontendAcce
       //     def f = { class E }
       //   }
       // The class D is added as a member of class C. The reason is that the InnerClass attribute
-      // for D will containt class "C" and NOT the module class "C$" as the outer class of D.
+      // for D will contain class "C" and NOT the module class "C$" as the outer class of D.
       // This is done by buildNestedInfo, the reason is Java compatibility, see comment in BTypes.
       // For consistency, the InnerClass entry for D needs to be present in C - to Java it looks
       // like D is a member of C, not C$.

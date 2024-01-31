@@ -134,7 +134,7 @@ object DottyBackendInterface {
       def isStaticMember(using Context): Boolean = (sym ne NoSymbol) &&
           (sym.is(JavaStatic) || sym.isScalaStatic || sym.isStaticModuleField)
 
-        // guard against no sumbol cause this code is executed to select which call type(static\dynamic) to use to call array.clone
+        // guard against no symbol because this code is executed to select which call type (static\dynamic) to use to call array.clone
 
       /**
       * True for module classes of modules that are top-level or owned only by objects. Module classes
