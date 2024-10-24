@@ -91,11 +91,18 @@ object DottyJSPlugin extends AutoPlugin {
 object Build {
   import ScaladocConfigs._
 
-  val referenceVersion = "3.5.2-RC1"
+  /** Version of the Scala compiler used to build the artifacts.
+   *  Reference version should track the latest version pushed to Maven:
+   *  - In main branch it should be the last RC version (using experimental TASTy required for non-bootstrapped tests)
+   *  - In release branch it should be the last stable release
+   *  3.6.0-RC1 was released as 3.6.0 - it's having and experimental TASTy version
+   */
+  val referenceVersion = "3.6.0"
 
-  val baseVersion = "3.6.1"
+  val baseVersion = "3.6.2"
   // Will be required by some automation later
-  val prereleaseVersion = s"$baseVersion-RC1"
+  // TODO: Introduce automation and handling for RC versions before 3.6.2-RC1
+  // val prereleaseVersion = s"$baseVersion-RC1"
 
   // LTS or Next
   val versionLine = "Next"
@@ -113,8 +120,9 @@ object Build {
    *  For a baseVersion `3.M.P` the mimaPreviousDottyVersion should be set to:
    *   - `3.M.0`     if `P > 0`
    *   - `3.(M-1).0` if `P = 0`
+   *  3.6.1 is an exception from this rule - 3.6.0 was a broken release
    */
-  val mimaPreviousDottyVersion = "3.5.0"
+  val mimaPreviousDottyVersion = "3.6.1"
 
   /** LTS version against which we check binary compatibility.
    *
@@ -149,8 +157,8 @@ object Build {
    *  scala-library.
    */
   def stdlibVersion(implicit mode: Mode): String = mode match {
-    case NonBootstrapped => "2.13.14"
-    case Bootstrapped => "2.13.14"
+    case NonBootstrapped => "2.13.15"
+    case Bootstrapped => "2.13.15"
   }
 
   /** Version of the scala-library for which we will generate TASTy.
@@ -160,7 +168,7 @@ object Build {
    *  We can use nightly versions to tests the future compatibility in development.
    *  Nightly versions: https://scala-ci.typesafe.com/ui/native/scala-integration/org/scala-lang
    */
-  val stdlibBootstrappedVersion = "2.13.14"
+  val stdlibBootstrappedVersion = "2.13.15"
 
   val dottyOrganization = "org.scala-lang"
   val dottyGithubUrl = "https://github.com/scala/scala3"
@@ -616,18 +624,36 @@ object Build {
   def findArtifactPath(classpath: Def.Classpath, name: String): String =
     findArtifact(classpath, name).getAbsolutePath
 
+  /** Replace package names in package definitions, for shading.
+   * It assumes the full package def is written on a single line.
+   * It does not adapt the imports accordingly.
+   */
+  def replacePackage(lines: List[String])(replace: PartialFunction[String, String]): List[String] = {
+    def recur(lines: List[String]): List[String] =
+      lines match {
+        case head :: tail =>
+          if (head.startsWith("package ")) {
+            val packageName = head.stripPrefix("package ").trim
+            val newPackageName = replace.applyOrElse(packageName, (_: String) => packageName)
+            s"package $newPackageName" :: tail
+          } else head :: recur(tail)
+        case _ => lines
+      }
+    recur(lines)
+  }
+
   /** Insert UnsafeNulls Import after package */
-  def insertUnsafeNullsImport(lines: Seq[String]): Seq[String] = {
-    def recur(ls: Seq[String], foundPackage: Boolean): Seq[String] = ls match {
-      case Seq(l, rest @ _*) =>
+  def insertUnsafeNullsImport(lines: List[String]): List[String] = {
+    def recur(ls: List[String], foundPackage: Boolean): List[String] = ls match {
+      case l :: rest =>
         val lt = l.trim()
         if (foundPackage) {
           if (!(lt.isEmpty || lt.startsWith("package ")))
-            "import scala.language.unsafeNulls" +: ls
-          else l +: recur(rest, foundPackage)
+            "import scala.language.unsafeNulls" :: ls
+          else l :: recur(rest, foundPackage)
         } else {
           if (lt.startsWith("package ")) l +: recur(rest, true)
-          else l +: recur(rest, foundPackage)
+          else l :: recur(rest, foundPackage)
         }
       case _ => ls
     }
@@ -694,9 +720,9 @@ object Build {
       libraryDependencies ++= Seq(
         "org.scala-lang.modules" % "scala-asm" % "9.7.0-scala-2", // used by the backend
         Dependencies.compilerInterface,
-        "org.jline" % "jline-reader" % "3.25.1",   // used by the REPL
-        "org.jline" % "jline-terminal" % "3.25.1",
-        "org.jline" % "jline-terminal-jna" % "3.25.1", // needed for Windows
+        "org.jline" % "jline-reader" % "3.27.0",   // used by the REPL
+        "org.jline" % "jline-terminal" % "3.27.0",
+        "org.jline" % "jline-terminal-jna" % "3.27.0", // needed for Windows
         ("io.get-coursier" %% "coursier" % "2.0.16" % Test).cross(CrossVersion.for3Use2_13),
       ),
 
@@ -928,7 +954,10 @@ object Build {
           val sjsSources = (trgDir ** "*.scala").get.toSet
           sjsSources.foreach(f => {
             val lines = IO.readLines(f)
-            IO.writeLines(f, insertUnsafeNullsImport(lines))
+            val linesWithPackage = replacePackage(lines) {
+              case "org.scalajs.ir" => "dotty.tools.sjs.ir"
+            }
+            IO.writeLines(f, insertUnsafeNullsImport(linesWithPackage))
           })
           sjsSources
         } (Set(scalaJSIRSourcesJar)).toSeq
@@ -1405,7 +1434,7 @@ object Build {
       BuildInfoPlugin.buildInfoDefaultSettings
 
   lazy val presentationCompilerSettings = {
-    val mtagsVersion = "1.3.4"
+    val mtagsVersion = "1.3.5"
     Seq(
       libraryDependencies ++= Seq(
         "org.lz4" % "lz4-java" % "1.8.0",
@@ -1415,7 +1444,7 @@ object Build {
           .exclude("org.eclipse.lsp4j","org.eclipse.lsp4j.jsonrpc"),
         "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.20.1",
       ),
-      libraryDependencies += ("org.scalameta" % "mtags-shared_2.13.14" % mtagsVersion % SourceDeps),
+      libraryDependencies += ("org.scalameta" % "mtags-shared_2.13.15" % mtagsVersion % SourceDeps),
       ivyConfigurations += SourceDeps.hide,
       transitiveClassifiers := Seq("sources"),
       scalacOptions ++= Seq("-source", "3.3"), // To avoid fatal migration warnings
